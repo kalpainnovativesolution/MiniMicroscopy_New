@@ -33,6 +33,9 @@ def download_model():
         with st.spinner("Downloading model from Google Drive..."):
             gdown.download(file_url, MODEL_PATH, quiet=False)
 
+    if not os.path.exists(MODEL_PATH):
+        raise FileNotFoundError(f"Model file not found after download: {MODEL_PATH}")
+
     return MODEL_PATH
 
 # -------------------------------
@@ -43,12 +46,11 @@ def load_model():
     local_model_path = download_model()
     return YOLO(local_model_path)
 
-model = load_model()
-
 # -------------------------------
 # Detection + annotation function
 # -------------------------------
 def detect_and_annotate(
+    model,
     image,
     conf_thresh,
     show_boxes,
@@ -116,16 +118,13 @@ def detect_and_annotate(
     return total_count, sc_count, usc_count, annotated_img
 
 # -------------------------------
-# App title
+# App UI
 # -------------------------------
 st.title("🔬 Mini-Microscopy Somatic Cell Detection")
 st.write("Upload an image to count stained and unstained cells.")
 
-# -------------------------------
 # Sidebar controls
-# -------------------------------
 st.sidebar.header("Settings")
-
 conf_thresh = st.sidebar.slider("Confidence Threshold", 0.05, 1.0, 0.25, 0.05)
 overlap_thresh = st.sidebar.slider("Overlap (IoU) Threshold", 0.1, 1.0, 0.45, 0.05)
 opacity_thresh = st.sidebar.slider("Annotation Opacity", 0.1, 1.0, 0.5, 0.05)
@@ -134,17 +133,21 @@ show_boxes = st.sidebar.checkbox("Display Bounding Boxes", value=True)
 show_labels = st.sidebar.checkbox("Display Cell Class Labels", value=True)
 show_conf = st.sidebar.checkbox("Display Confidence Score", value=False)
 
-# -------------------------------
+# Load model safely
+try:
+    model = load_model()
+    st.sidebar.success("Model loaded successfully")
+except Exception as e:
+    st.error(f"Model loading failed: {e}")
+    st.stop()
+
 # File uploader
-# -------------------------------
 uploaded_file = st.file_uploader(
     "Upload Image",
     type=["jpg", "jpeg", "png", "bmp", "tiff"]
 )
 
-# -------------------------------
 # Main processing
-# -------------------------------
 if uploaded_file is not None:
     try:
         pil_image = Image.open(uploaded_file).convert("RGB")
@@ -154,6 +157,7 @@ if uploaded_file is not None:
         img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
         total_count, sc_count, usc_count, output_img = detect_and_annotate(
+            model,
             img_bgr,
             conf_thresh,
             show_boxes,
