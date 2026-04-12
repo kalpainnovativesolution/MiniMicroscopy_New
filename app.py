@@ -22,7 +22,7 @@ MODEL_PATH = "MiniMicroscope_Model_Originalimage.pt"
 # -------------------------------
 @st.cache_resource
 def load_model():
-    if not os.path.exists(MODEL_PATH):
+      if not os.path.exists(MODEL_PATH):
         with st.spinner("Downloading model from Google Drive..."):
             gdown.download(MODEL_URL, MODEL_PATH, quiet=False)
 
